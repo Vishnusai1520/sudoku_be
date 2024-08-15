@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from database.db import init_db
 
 from router import sudoku, profile
 
@@ -15,6 +16,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+async def on_startup():
+    init_db()
 
 @app.get("/")
 async def root():

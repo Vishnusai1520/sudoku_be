@@ -1,5 +1,4 @@
-from fastapi import APIRouter
-from fastapi import Depends
+from fastapi import APIRouter, Depends
 
 from handler.sudoku import * 
 from authy import *

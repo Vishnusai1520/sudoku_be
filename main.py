@@ -16,9 +16,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.on_event("startup")
-async def on_startup():
-    init_db()
+app.add_event_handler("startup", init_db)
 
 @app.get("/")
 async def root():

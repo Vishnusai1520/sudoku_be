@@ -1,18 +1,12 @@
 from fastapi import APIRouter, Depends
-
-
-
 from handler.sudoku import *
 from authy import * 
 
-
 route = APIRouter()
 
-# @route.post('/login')
-
 @route.get('/sudoku', dependencies=[Depends(verify_api_key)])
-async def get_sudoku(difficulty:str):
-    return await generate_puzzle(difficulty)
+async def get_sudoku(player_id: str,difficulty:str):
+    return await generate_puzzle(player_id,difficulty)
 
 @route.post('/solve', dependencies=[Depends(verify_api_key)])
 async def solve_sudoku(puzzle:dict):

@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends
 
-from handler.sudoku import * 
-from authy import *
+
+from handler.sudoku import *
+from authy import * 
 
 route = APIRouter()
 

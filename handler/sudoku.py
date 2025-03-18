@@ -162,14 +162,25 @@ def divide_holes_into_nine(num_holes):
         print(f"Error in divide_holes_into_nine: {e}")
         return []
 
+def decode_puzzle(puzzle_str):
+    return [[int(num) if num != '.' else 0 for num in puzzle_str[i:i+9]] for i in range(0, 81, 9)]
+
+# def decode_solution(solution_str):
+#     return [[int(num) for num in solution_str[i:i+9]] for i in range(0, 81, 9)]
+
 async def generate_puzzle(player_id, difficulty):
     try:
         # Check if there is an existing puzzle for the player
         cursor.execute('''SELECT sudoku_id FROM player_sudoku WHERE player_id=?''', (player_id,))
         existing_puzzle = cursor.fetchone()
         if existing_puzzle:
-            print(f"Player {player_id} already has an assigned Sudoku.")
-            return None
+            cursor.execute('''SELECT puzzle, solution, difficulty FROM sudoku WHERE id=?''', (existing_puzzle[0],))
+            puzzle_data = cursor.fetchone()
+            if puzzle_data and puzzle_data[2] == difficulty:
+                print(f"Player {player_id} already has an assigned Sudoku with difficulty {difficulty}.")
+                grid = decode_puzzle(puzzle_data[0])
+                solution = decode_puzzle(puzzle_data[1])
+                return {'puzzle': grid, 'solution': solution}
 
         grid = [[0 for _ in range(9)] for _ in range(9)]
 

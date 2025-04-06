@@ -97,66 +97,12 @@ async def solve(grid):
 
 def divide_holes_into_nine(num_holes):
     try:
-        total_blanks = num_holes
-        avg_holes = num_holes // 9
-        holes = []
-        nine_count = 0
-        excess_hole = []
-        for i in range(8):
-            avg_hole = num_holes // (9 - i)
-            if avg_hole > 9:
-                excess_hole.append(avg_hole - 9)
-                avg_hole = 9
-            else:
-                excess_hole.append(0)
-
-            blank = avg_hole
-
-            if avg_hole != 9:
-                if random.randint(1, 100) % 2:
-                    blank = random.randint(max(1, avg_hole), min(9, num_holes))
-                else:
-                    blank = random.randint(1, min(avg_hole, 9))
-            else:
-                blank = 8
-            if blank == 9:
-                nine_count += 1
-                if nine_count > 1:
-                    blank = 8
-            holes.append(blank)
-            num_holes -= blank
-        excess_hole.append(0)
-        if num_holes == 9 and nine_count > 0:
-            holes.append(8)
-            num_holes -= 8
-        elif num_holes < 9:
-            holes.append(num_holes)
-        else:
-            excess = num_holes - 9
-            holes.append(9)
-            avg_exc = excess
-            if excess > 2:
-                avg_exc = excess // 2
-            for i in range(9):
-                holes[i] += excess_hole[i]
-                if holes[i] + avg_exc < 9 and excess > 0:
-                    inc = min(avg_exc, excess)
-                    holes[i] += inc
-                    excess -= inc
-
-        if holes.count(9) > 1:
-            for i in range(9):
-                if holes[i] >= 9:
-                    excess = holes[i] - 8
-                    holes[i] = 8
-                    for j in range(9):
-                        increment = min(9 - holes[j], excess)
-                        if holes[j] + increment < 9 and excess > 0:
-                            holes[j] += increment
-                            excess -= increment
-                            if excess == 0:
-                                break
-
+        holes = [min(num_holes // 9, 8)] * 9
+        remaining_holes = num_holes - sum(holes)
+        for i in range(remaining_holes):
+            if holes[i] < 8:
+                holes[i] += 1
+        random.shuffle(holes)
         return holes
     except Exception as e:
         print(f"Error in divide_holes_into_nine: {e}")
@@ -168,20 +114,8 @@ def decode_puzzle(puzzle_str):
 # def decode_solution(solution_str):
 #     return [[int(num) for num in solution_str[i:i+9]] for i in range(0, 81, 9)]
 
-async def generate_puzzle(player_id, difficulty):
+async def generate_grid():
     try:
-        # Check if there is an existing puzzle for the player
-        cursor.execute('''SELECT sudoku_id FROM player_sudoku WHERE player_id=?''', (player_id,))
-        existing_puzzle = cursor.fetchone()
-        if existing_puzzle:
-            cursor.execute('''SELECT puzzle, solution, difficulty FROM sudoku WHERE id=?''', (existing_puzzle[0],))
-            puzzle_data = cursor.fetchone()
-            if puzzle_data and puzzle_data[2] == difficulty:
-                print(f"Player {player_id} already has an assigned Sudoku with difficulty {difficulty}.")
-                grid = decode_puzzle(puzzle_data[0])
-                solution = decode_puzzle(puzzle_data[1])
-                return {'puzzle': grid, 'solution': solution}
-
         grid = [[0 for _ in range(9)] for _ in range(9)]
 
         for k in range(0, 9, 3):
@@ -194,15 +128,13 @@ async def generate_puzzle(player_id, difficulty):
             print("Failed to solve the grid initially.")
             return None
 
-        solution = copy.deepcopy(grid)
-        num_holes = random.randint(58, 61)
-        if difficulty == 'expert':
-            num_holes = random.randint(49, 57)
-        if difficulty == 'medium':
-            num_holes = random.randint(40, 48)
-        if difficulty == 'easy':
-            num_holes = random.randint(30, 39)
-
+        return grid
+    except Exception as e:
+        print(f"Error generating grid: {e}")
+        return None
+    
+async def generate_puzzle_grid(grid,num_holes):
+    try:
         holes = divide_holes_into_nine(num_holes)
         total_blanks = num_holes
         while total_blanks > 0:
@@ -211,8 +143,48 @@ async def generate_puzzle(player_id, difficulty):
                 grid[row][col] = 0
                 holes[grid[row][col]-1] -= 1
                 total_blanks -= 1
+        return grid
+    except Exception as e:
+        print(f"Error generating solution: {e}")
+        return None
 
-        puzzle_str = ''.join([''.join([str(num) if num != 0 else '.' for num in row]) for row in grid])
+async def get_holes(difficulty):
+    num_holes = random.randint(58, 61)
+    if difficulty == 'expert':
+        num_holes = random.randint(49, 57)
+    if difficulty == 'medium':
+        num_holes = random.randint(40, 48)
+    if difficulty == 'easy':
+        num_holes = random.randint(30, 39)
+    return num_holes
+
+async def generate_puzzle(player_id, difficulty):
+    try:
+        cursor.execute('''SELECT sudoku_id FROM player_sudoku ps 
+                  JOIN sudoku s ON ps.sudoku_id = s.id 
+                  WHERE ps.player_id=? AND s.difficulty=? and solve_time = 0''', (player_id, difficulty))
+        
+        existing_puzzle = cursor.fetchone()
+        
+        print(f"Existing puzzle for player {player_id} with difficulty {difficulty}: {existing_puzzle}")
+        if existing_puzzle:
+            cursor.execute('''SELECT puzzle, solution FROM sudoku WHERE id=?''', (existing_puzzle[0],))
+            puzzle_data = cursor.fetchone()
+            print(f"Puzzle data: {puzzle_data}")
+            if puzzle_data:
+                print(f"Player {player_id} already has an assigned Sudoku with difficulty {difficulty}.")
+                grid = decode_puzzle(puzzle_data[0])
+                solution = decode_puzzle(puzzle_data[1])
+                return {'puzzle': grid, 'solution': solution}
+
+        grid = await generate_grid()
+
+        solution = copy.deepcopy(grid)
+        num_holes = await get_holes(difficulty)
+
+        puzzle = await generate_puzzle_grid(grid, num_holes)
+
+        puzzle_str = ''.join([''.join([str(num) if num != 0 else '.' for num in row]) for row in puzzle])
         solution_str = ''.join([''.join([str(num) for num in row]) for row in solution])
 
         cursor.execute('''INSERT INTO sudoku (puzzle, solution, difficulty) VALUES (?, ?, ?)''',

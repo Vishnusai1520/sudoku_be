@@ -21,5 +21,5 @@ CREATE TABLE player_sudoku (
     player_id INT NOT NULL,
     sudoku_id INT NOT NULL,
     solve_time INT DEFAULT 0,
-    best_time INT DEFAULT 0
+    -- best_time INT DEFAULT 0
 );

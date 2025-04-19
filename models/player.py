@@ -39,7 +39,6 @@ class SubmitSudokuRequest(BaseModel):
     solve_time: int 
 
 class SubmitSudokuResponse(BaseModel):
-    message: str
     updated_time: int
     current_streak: int
     highest_streak: int

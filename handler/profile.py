@@ -166,61 +166,42 @@ async def update_streak(player_id: int, streak_type: str):
 
 async def submit_sudoku_result(player_id: int, sudoku_id: int, solve_time: int):
     try:
-        conn = sqlite3.connect("sudoku.db", check_same_thread=False)
+        conn = get_db_connection()
         cursor = conn.cursor()
 
-        cursor.execute("""
-            SELECT best_time FROM player_sudoku
-            WHERE player_id = ? AND sudoku_id = ?
-        """, (player_id, sudoku_id))
-        row = cursor.fetchone()
-
-        if row:
-            
-            best_time = row[0]
-            if best_time == 0 or solve_time < best_time:
-                cursor.execute("""
-                    UPDATE player_sudoku
-                    SET best_time = ?
-                    WHERE player_id = ? AND sudoku_id = ?
-                """, (solve_time, player_id, sudoku_id))
-        else:
-            
-            cursor.execute("""
-                INSERT INTO player_sudoku (player_id, sudoku_id, solve_time, best_time)
-                VALUES (?, ?, ?, ?)
-            """, (player_id, sudoku_id, solve_time, solve_time))
-
-        
-        cursor.execute("SELECT current_streak, highest_streak FROM player WHERE player_id = ?", (player_id,))
-        streak_row = cursor.fetchone()
-        if not streak_row:
-            conn.close()
-            return {"error": "Player not found"}
-
-        current_streak, highest_streak = streak_row
-        current_streak += 1
-        if current_streak > highest_streak:
-            highest_streak = current_streak
-
-        cursor.execute("""
-            UPDATE player
-            SET current_streak = ?, highest_streak = ?
-            WHERE player_id = ?
-        """, (current_streak, highest_streak, player_id))
-
+        cursor.execute(
+            "UPDATE player_sudoku SET solve_time = ? WHERE player_id=? AND sudoku_id=?",
+            (solve_time, player_id, sudoku_id)
+        )
+        cursor.execute(
+            "UPDATE player SET current_streak = current_streak + 1 WHERE player_id=?",
+            (player_id,)
+        )
+        cursor.execute(
+            "UPDATE player SET highest_streak = CASE WHEN current_streak > highest_streak THEN current_streak ELSE highest_streak END WHERE player_id=?",
+            (player_id,)
+        )
+        cursor.execute(
+            "UPDATE player_sudoku SET best_time = CASE WHEN best_time IS NULL OR ? < best_time THEN ? END WHERE player_id=? AND sudoku_id=?",
+            (solve_time, solve_time, player_id, sudoku_id)
+        )
         conn.commit()
+        cursor.execute(
+            "SELECT current_streak, highest_streak FROM player WHERE player_id=?",
+            (player_id,)
+        )
+        streaks = cursor.fetchone()
+        
         conn.close()
-
+        if not streaks:
+            return {"error": "Player not found"}
         return {
-            "message": "Sudoku result submitted successfully",
             "updated_time": solve_time,
-            "current_streak": current_streak,
-            "highest_streak": highest_streak
+            "current_streak": streaks[0],
+            "highest_streak": streaks[1]
         }
-
     except Exception as e:
-        return {"error": f"Error submitting sudoku result: {e}"}
+        return {"error": f"Error submitting Sudoku result: {e}"}
 
 async def fetch_player_sudoku(player_id: int):
     try:
@@ -228,7 +209,7 @@ async def fetch_player_sudoku(player_id: int):
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT ps.sudoku_id, s.puzzle, s.solution
+            SELECT ps.sudoku_id, s.puzzle, s.solution, ps.solve_time
             FROM player_sudoku ps
             JOIN sudoku s ON ps.sudoku_id = s.id
             WHERE ps.player_id=?
@@ -242,7 +223,8 @@ async def fetch_player_sudoku(player_id: int):
             {
                 "sudoku_id": row[0],
                 "puzzle": row[1],
-                "solution": row[2]
+                "solution": row[2],
+                "solve_time": row[3]
             }
             for row in sudoku_data
         ]

@@ -160,7 +160,7 @@ async def get_holes(difficulty):
 
 async def generate_puzzle(player_id, difficulty):
     try:
-        cursor.execute('''SELECT sudoku_id FROM player_sudoku ps 
+        cursor.execute('''SELECT ps.sudoku_id, s.puzzle, s.solution FROM player_sudoku ps 
                   JOIN sudoku s ON ps.sudoku_id = s.id 
                   WHERE ps.player_id=? AND s.difficulty=? and solve_time = 0''', (player_id, difficulty))
         
@@ -168,14 +168,10 @@ async def generate_puzzle(player_id, difficulty):
         
         print(f"Existing puzzle for player {player_id} with difficulty {difficulty}: {existing_puzzle}")
         if existing_puzzle:
-            cursor.execute('''SELECT puzzle, solution FROM sudoku WHERE id=?''', (existing_puzzle[0],))
-            puzzle_data = cursor.fetchone()
-            print(f"Puzzle data: {puzzle_data}")
-            if puzzle_data:
-                print(f"Player {player_id} already has an assigned Sudoku with difficulty {difficulty}.")
-                grid = decode_puzzle(puzzle_data[0])
-                solution = decode_puzzle(puzzle_data[1])
-                return {'puzzle': grid, 'solution': solution}
+            print(f"Player {player_id} already has an assigned Sudoku with difficulty {difficulty}.")
+            grid = decode_puzzle(existing_puzzle[1])
+            solution = decode_puzzle(existing_puzzle[2])
+            return {'sudoku_id' :existing_puzzle[0] ,'puzzle': grid, 'solution': solution}
 
         grid = await generate_grid()
 
@@ -201,7 +197,7 @@ async def generate_puzzle(player_id, difficulty):
         print("Solution:")
         print_grid(solution)
 
-        return {'puzzle': grid, 'solution': solution}
+        return {'sudoku_id': sudoku_id,'puzzle': grid, 'solution': solution}
     except Exception as e:
         print(f"Error generating puzzle: {e}")
         return None

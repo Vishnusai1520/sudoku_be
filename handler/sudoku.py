@@ -18,7 +18,8 @@ def create_tables():
         );''')
 
         cursor.execute('''CREATE TABLE IF NOT EXISTS player (
-            player_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
             current_streak INTEGER DEFAULT 0,
             highest_streak INTEGER DEFAULT 0,
             password TEXT NOT NULL,

@@ -8,7 +8,8 @@ CREATE TABLE sudoku (
 );
 
 CREATE TABLE player (
-    player_id INT PRIMARY KEY AUTO_INCREMENT,
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(255) NOT NULL,
     current_streak INT DEFAULT 0,
     highest_streak INT DEFAULT 0,
     password VARCHAR(255) NOT NULL,
